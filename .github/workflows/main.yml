@@ -3,19 +3,20 @@ env:
   FORCE_COLOR: 2
   NODE: 14
 on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+  workflow_dispatch:
+    inputs:
+      test-filter:
+        description: 'Optional jest test name/path filter'
+        required: false
+        default: ''
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE }}
           cache: yarn
@@ -25,9 +26,10 @@ jobs:
   regression:
     name: Test regressions
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE }}
           cache: yarn
@@ -36,6 +38,7 @@ jobs:
   test:
     name: Node.js ${{ matrix.node-version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -45,11 +48,29 @@ jobs:
           - 12
           - 10
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
       - run: yarn install
-      - run: yarn test
+      - run: yarn test ${{ inputs.test-filter }}
       - run: yarn test-browser
+  pack:
+    name: Pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 16
+          cache: yarn
+      - run: yarn install
+      - run: rm -rf dist && yarn rollup -c
+      - run: npm pack --ignore-scripts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: svgo-tgz
+          path: svgo-*.tgz
+          if-no-files-found: error

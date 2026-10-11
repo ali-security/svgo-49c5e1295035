@@ -39,7 +39,13 @@ const extractTarGz = async (url, baseDir, include) => {
     next();
   });
   const response = await fetch(url);
-  await pipeline(response.body, extract);
+  // w3.org serves the .tar.gz as application/gzip without Content-Encoding,
+  // so node-fetch does not decompress it; gunzip explicitly in that case.
+  if (response.headers.get('content-encoding')) {
+    await pipeline(response.body, extract);
+  } else {
+    await pipeline(response.body, zlib.createGunzip(), extract);
+  }
 };
 
 (async () => {
